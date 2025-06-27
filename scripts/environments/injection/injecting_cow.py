@@ -56,7 +56,7 @@ class GripperState:
     CLOSE = wp.constant(-1.0)
 
 
-class PickSmState: #Change to Inject Cow state or something 
+class InjectSmState: #Change to Inject Cow state or something 
     """States for the pick state machine."""
 
     REST = wp.constant(0)
@@ -65,7 +65,7 @@ class PickSmState: #Change to Inject Cow state or something
     INJECT_COW = wp.constant(3)
 
 
-class PickSmWaitTime:
+class InjectSmWaitTime:
     """Additional wait times (in s) for states for before switching."""
 
     REST = wp.constant(0.2)
@@ -97,15 +97,15 @@ def infer_state_machine(
     # retrieve state machine state
     state = sm_state[tid]
     # decide next state
-    if state == PickSmState.REST:
+    if state == InjectSmState.REST:
         des_ee_pose[tid] = ee_pose[tid]
         gripper_state[tid] = GripperState.OPEN
         # wait for a while
-        if sm_wait_time[tid] >= PickSmWaitTime.REST:
+        if sm_wait_time[tid] >= InjectSmWaitTime.REST:
             # move to next state and reset wait time
-            sm_state[tid] = PickSmState.APPROACH_SIDE_OF_COW_NECK
+            sm_state[tid] = InjectSmState.APPROACH_SIDE_OF_COW_NECK
             sm_wait_time[tid] = 0.0
-    elif state == PickSmState.APPROACH_SIDE_OF_COW_NECK:
+    elif state == InjectSmState.APPROACH_SIDE_OF_COW_NECK:
         des_ee_pose[tid] = wp.transform_multiply(offset[tid], object_pose[tid])
         gripper_state[tid] = GripperState.OPEN
         if distance_below_threshold(
@@ -114,11 +114,11 @@ def infer_state_machine(
             position_threshold,
         ):
             # wait for a while
-            if sm_wait_time[tid] >= PickSmWaitTime.APPROACH_COW:
+            if sm_wait_time[tid] >= InjectSmWaitTime.APPROACH_COW:
                 # move to next state and reset wait time
-                sm_state[tid] = PickSmState.APPROACH_COW
+                sm_state[tid] = InjectSmState.APPROACH_COW
                 sm_wait_time[tid] = 0.0
-    elif state == PickSmState.APPROACH_COW:
+    elif state == InjectSmState.APPROACH_COW:
         des_ee_pose[tid] = object_pose[tid]
         gripper_state[tid] = GripperState.OPEN
         if distance_below_threshold(
@@ -126,11 +126,11 @@ def infer_state_machine(
             wp.transform_get_translation(des_ee_pose[tid]),
             position_threshold,
         ):
-            if sm_wait_time[tid] >= PickSmWaitTime.APPROACH_COW:
+            if sm_wait_time[tid] >= InjectSmWaitTime.APPROACH_COW:
                 # move to next state and reset wait time
-                sm_state[tid] = PickSmState.INJECT_COW
+                sm_state[tid] = InjectSmState.INJECT_COW
                 sm_wait_time[tid] = 0.0
-    elif state == PickSmState.INJECT_COW:
+    elif state == InjectSmState.INJECT_COW:
         des_ee_pose[tid] = des_object_pose[tid]
         gripper_state[tid] = GripperState.CLOSE
         if distance_below_threshold(
@@ -139,9 +139,9 @@ def infer_state_machine(
             position_threshold,
         ):
             # wait for a while
-            if sm_wait_time[tid] >= PickSmWaitTime.INJECT_COW:
+            if sm_wait_time[tid] >= InjectSmWaitTime.INJECT_COW:
                 # move to next state and reset wait time
-                sm_state[tid] = PickSmState.INJECT_COW
+                sm_state[tid] = InjectSmState.INJECT_COW
                 sm_wait_time[tid] = 0.0
     # increment wait time
     sm_wait_time[tid] = sm_wait_time[tid] + dt[tid]
