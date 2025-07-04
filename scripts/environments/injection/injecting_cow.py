@@ -13,9 +13,7 @@ It uses the `warp` library to run the state machine in parallel on the GPU.
 """Launch Omniverse Toolkit first."""
 
 import argparse
-
 from isaaclab.app import AppLauncher
-
 # add argparse arguments
 parser = argparse.ArgumentParser(description="Injecting Cow.")
 parser.add_argument(
@@ -23,6 +21,7 @@ parser.add_argument(
 )
 parser.add_argument("--num_envs", type=int, default=None, help="Number of environments to simulate.")
 # append AppLauncher cli args
+
 AppLauncher.add_app_launcher_args(parser)
 # parse the arguments
 args_cli = parser.parse_args()
@@ -42,9 +41,10 @@ import warp as wp
 from isaaclab.assets.rigid_object.rigid_object_data import RigidObjectData
 
 import isaaclab_tasks  # noqa: F401
-from isaaclab_tasks.manager_based.manipulation.lift.lift_env_cfg import LiftEnvCfg
-from isaaclab_tasks.utils.parse_cfg import parse_env_cfg
+from isaaclab_tasks.manager_based.manipulation.injection.injection_env_cfg import InjectionEnvCfg
 
+from isaaclab_tasks.utils.parse_cfg import parse_env_cfg
+from isaaclab.envs import ManagerBasedRLEnv
 # initialize warp
 wp.init()
 
@@ -63,15 +63,15 @@ class InjectSmState: #Change to Inject Cow state or something
     APPROACH_SIDE_OF_COW_NECK = wp.constant(1)
     APPROACH_COW = wp.constant(2) 
     INJECT_COW = wp.constant(3)
-
+    DONE = wp.constant(4) 
 
 class InjectSmWaitTime:
     """Additional wait times (in s) for states for before switching."""
 
-    REST = wp.constant(0.2)
-    APPROACH_SIDE_OF_COW_NECK = wp.constant(0.5)  # These are Time requries for each time to do before it switches to another state iguess
-    APPROACH_COW = wp.constant(0.6)
-    INJECT_COW = wp.constant(0.3)
+    REST = wp.constant(5)
+    APPROACH_SIDE_OF_COW_NECK = wp.constant(10)  # These are Time requries for each time to do before it switches to another state iguess
+    APPROACH_COW = wp.constant(15)
+    INJECT_COW = wp.constant(10)
 
 
 @wp.func
@@ -126,7 +126,7 @@ def infer_state_machine(
             wp.transform_get_translation(des_ee_pose[tid]),
             position_threshold,
         ):
-            if sm_wait_time[tid] >= InjectSmWaitTime.APPROACH_COW:
+            if sm_wait_time[tid] >= InjectSmWaitTime.APPROACH_SIDE_OF_COW_NECK:
                 # move to next state and reset wait time
                 sm_state[tid] = InjectSmState.INJECT_COW
                 sm_wait_time[tid] = 0.0
@@ -141,26 +141,15 @@ def infer_state_machine(
             # wait for a while
             if sm_wait_time[tid] >= InjectSmWaitTime.INJECT_COW:
                 # move to next state and reset wait time
-                sm_state[tid] = InjectSmState.INJECT_COW
+                sm_state[tid] = InjectSmState.DONE  # You need to define DONE state
                 sm_wait_time[tid] = 0.0
     # increment wait time
     sm_wait_time[tid] = sm_wait_time[tid] + dt[tid]
 
 
-class PickAndLiftSm:
-    """A simple state machine in a robot's task space to pick and lift an object.
+class InjectCowSm:
+    """State machine to approach, inject, and finish interaction with a cow."""
 
-    The state machine is implemented as a warp kernel. It takes in the current state of
-    the robot's end-effector and the object, and outputs the desired state of the robot's
-    end-effector and the gripper. The state machine is implemented as a finite state
-    machine with the following states:
-
-    1. REST: The robot is at rest.
-    2. APPROACH_ABOVE_OBJECT: The robot moves above the object.
-    3. APPROACH_OBJECT: The robot moves to the object.
-    4. GRASP_OBJECT: The robot grasps the object.
-    5. LIFT_OBJECT: The robot lifts the object to the desired pose. This is the final state.
-    """
 
     def __init__(self, dt: float, num_envs: int, device: torch.device | str = "cpu", position_threshold=0.01):
         """Initialize the state machine.
@@ -243,47 +232,47 @@ class PickAndLiftSm:
 
 def main():
     # parse configuration
-    env_cfg: LiftEnvCfg = parse_env_cfg(
-        "Isaac-Lift-Cube-Franka-IK-Abs-v0",
-        device=args_cli.device,
-        num_envs=args_cli.num_envs,
-        use_fabric=not args_cli.disable_fabric,
-    )
-    # create environment
-    env = gym.make("Isaac-Lift-Cube-Franka-IK-Abs-v0", cfg=env_cfg)
-    # reset environment at start
-    env.reset()
+    
+    env_cfg = InjectionEnvCfg()
+    env_cfg.scene.num_envs = args_cli.num_envs
+    env_cfg.sim.device = args_cli.device
+    # setup RL environment
+    env = ManagerBasedRLEnv(cfg=env_cfg)
 
     # create action buffers (position + quaternion)
-    actions = torch.zeros(env.unwrapped.action_space.shape, device=env.unwrapped.device)
-    actions[:, 3] = 1.0
+    actions = torch.zeros(env.action_space.shape, device=env.device)
+    print(env.action_space.shape)
+    
+    #actions[:, 3] = 1.0
+    #actions[:, 3:7] = torch.tensor([0.0, 0.0, 0.0, 1.0], device=env.device)
     # desired object orientation (we only do position control of object)
-    desired_orientation = torch.zeros((env.unwrapped.num_envs, 4), device=env.unwrapped.device)
+    desired_orientation = torch.zeros((env.num_envs, 4), device=env.device)
     desired_orientation[:, 1] = 1.0
     # create state machine
-    pick_sm = PickAndLiftSm(
-        env_cfg.sim.dt * env_cfg.decimation, env.unwrapped.num_envs, env.unwrapped.device, position_threshold=0.01
+    injection_sm = InjectCowSm(
+        env_cfg.sim.dt * env_cfg.decimation, env.num_envs, env.device, position_threshold=0.01
     )
 
     while simulation_app.is_running():
         # run everything in inference mode
-        with torch.inference_mode():
             # step environment
             dones = env.step(actions)[-2]
 
             # observations
             # -- end-effector frame
-            ee_frame_sensor = env.unwrapped.scene["ee_frame"]
-            tcp_rest_position = ee_frame_sensor.data.target_pos_w[..., 0, :].clone() - env.unwrapped.scene.env_origins
+            ee_frame_sensor = env.scene["ee_frame"]
+            tcp_rest_position = ee_frame_sensor.data.target_pos_w[..., 0, :].clone() - env.scene.env_origins
             tcp_rest_orientation = ee_frame_sensor.data.target_quat_w[..., 0, :].clone()
             # -- object frame
-            object_data: RigidObjectData = env.unwrapped.scene["object"].data
-            object_position = object_data.root_pos_w - env.unwrapped.scene.env_origins
+            object_data: RigidObjectData = env.scene["object"].data
+            object_position = object_data.root_pos_w - env.scene.env_origins
             # -- target object frame
-            desired_position = env.unwrapped.command_manager.get_command("object_pose")[..., :3]
+            desired_position = env.command_manager.get_command("object_pose")[..., :3]
+            # Sample the object position once outside the loop
+
 
             # advance state machine
-            actions = pick_sm.compute(
+            actions = injection_sm.compute(
                 torch.cat([tcp_rest_position, tcp_rest_orientation], dim=-1),
                 torch.cat([object_position, desired_orientation], dim=-1),
                 torch.cat([desired_position, desired_orientation], dim=-1),
@@ -291,7 +280,7 @@ def main():
 
             # reset state machine
             if dones.any():
-                pick_sm.reset_idx(dones.nonzero(as_tuple=False).squeeze(-1))
+                injection_sm.reset_idx(dones.nonzero(as_tuple=False).squeeze(-1))
 
     # close the environment
     env.close()
@@ -299,6 +288,7 @@ def main():
 
 if __name__ == "__main__":
     # run the main function
+
     main()
     # close sim app
     simulation_app.close()

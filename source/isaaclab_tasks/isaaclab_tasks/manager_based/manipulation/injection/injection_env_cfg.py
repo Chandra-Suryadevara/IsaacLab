@@ -20,8 +20,8 @@ from . import mdp
 ##
 # Scene definition
 ##
-
-
+from isaaclab_assets.robots.franka import FRANKA_PANDA_CFG
+from isaaclab.sensors.frame_transformer.frame_transformer_cfg import FrameTransformerCfg
 @configclass
 class CowTableConfig(InteractiveSceneCfg):
     """Configuration for the Injection scene with a robot and a cow.
@@ -30,11 +30,18 @@ class CowTableConfig(InteractiveSceneCfg):
     """
 
     # robots: will be populated by agent env cfg
-    robot: ArticulationCfg = MISSING
+    robot: ArticulationCfg = FRANKA_PANDA_CFG.replace(prim_path="{ENV_REGEX_NS}/panda")
+
     # end-effector sensor: will be populated by agent env cfg
-    ee_frame: FrameTransformerCfg = MISSING
-    # target object: will be populated by agent env cfg
-    object: RigidObjectCfg | DeformableObjectCfg = MISSING
+    ee_frame: FrameTransformerCfg = FrameTransformerCfg(
+    prim_path="{ENV_REGEX_NS}/panda/panda_link0",
+    target_frames=[
+        FrameTransformerCfg.FrameCfg(
+            prim_path="{ENV_REGEX_NS}/panda/panda_hand"
+        ),
+    ],
+    debug_vis=False,
+    )
 
     # Table
     table = AssetBaseCfg(
@@ -55,10 +62,13 @@ class CowTableConfig(InteractiveSceneCfg):
         prim_path="/World/light",
         spawn=sim_utils.DomeLightCfg(color=(0.75, 0.75, 0.75), intensity=3000.0),
     )
-    cow = AssetBaseCfg(
+    object = RigidObjectCfg(
         prim_path="{ENV_REGEX_NS}/Cow",
-        init_state=AssetBaseCfg.InitialStateCfg(pos=[1.0, -1.0, -1.1], rot = [0.707, 0.707, 0, 0]),
+        
+        init_state=RigidObjectCfg.InitialStateCfg(pos=[1.0, -1.0, -1.10], rot = [0.707, 0.707, 0, 0]  ),
+        #lin_vel=[0.0, 0.0, 0.0],
         spawn=UsdFileCfg(usd_path=r"C:\Users\chandrashekar.suryad\Desktop\nvidia\IsaacLab\Models\CowModel\Blend\Cow.usd"),
+        collision_group=0
     )
 
 
@@ -73,11 +83,14 @@ class CommandsCfg:
 
     object_pose = mdp.UniformPoseCommandCfg(
         asset_name="robot",
-        body_name=MISSING,  # will be set by agent env cfg
+        body_name="panda_hand",  # will be set by agent env cfg
         resampling_time_range=(5.0, 5.0),
-        debug_vis=True,
+        debug_vis=False,
         ranges=mdp.UniformPoseCommandCfg.Ranges(
-            pos_x=(0.4, 0.6), pos_y=(-0.25, 0.25), pos_z=(0.25, 0.5), roll=(0.0, 0.0), pitch=(0.0, 0.0), yaw=(0.0, 0.0)
+           pos_x=(0.2, 0.8),      # left to right
+pos_y=(-0.4, 0.4),     # front to back
+pos_z=(0.1, 0.6)       # near table to higher
+, roll=(0.0, 0.0), pitch=(0.0, 0.0), yaw=(0.0, 0.0)
         ),
     )
 
@@ -86,10 +99,25 @@ class CommandsCfg:
 class ActionsCfg:
     """Action specifications for the MDP."""
 
-    # will be set by agent env cfg
-    arm_action: mdp.JointPositionActionCfg | mdp.DifferentialInverseKinematicsActionCfg = MISSING
-    gripper_action: mdp.BinaryJointPositionActionCfg = MISSING
+    arm_action: mdp.JointEffortActionCfg = mdp.JointEffortActionCfg(
+        asset_name="robot",
+        joint_names=["panda_joint1", "panda_joint2", "panda_joint3", "panda_joint4", "panda_joint5", "panda_joint6", "panda_joint7"],
+        scale=100.0,
+    )
+    
+    gripper_action: mdp.BinaryJointPositionActionCfg = mdp.BinaryJointPositionActionCfg(
+        asset_name="robot",
+        joint_names=["panda_finger_joint1", "panda_finger_joint2"],
+        open_command_expr = {
+            "panda_finger_joint1": 0.04,
+            "panda_finger_joint2": 0.04,
+        },
+        close_command_expr = {
+            "panda_finger_joint1": 0.0,
+            "panda_finger_joint2": 0.0,
+        }
 
+    )
 
 @configclass
 class ObservationsCfg:
@@ -125,7 +153,7 @@ class EventCfg:
         params={
             "pose_range": {"x": (-0.1, 0.1), "y": (-0.25, 0.25), "z": (0.0, 0.0)},
             "velocity_range": {},
-            "asset_cfg": SceneEntityCfg("object", body_names="Object"),
+            "asset_cfg": SceneEntityCfg("object", body_names="Cow"),
         },
     )
 
@@ -134,21 +162,21 @@ class EventCfg:
 class RewardsCfg:
     """Reward terms for the MDP."""
 
-    reaching_cow = RewTerm(func=mdp.object_ee_distance, params={"std": 0.1}, weight=1.0)
+    reaching_cow = RewTerm(func=mdp.cow_ee_distance, params={"std": 0.1}, weight=1.0)
+        # Might need adjustment here 
+    # injecting_cow = RewTerm(func=mdp.injecting_cow_by_height_alignment, weight=15.0)
 
-    injecting_cow = RewTerm(func=mdp.object_is_lifted, params={"minimal_height": 0.04}, weight=15.0)
+    # object_goal_tracking = RewTerm(
+    #     func=mdp.object_goal_distance,
+    #     params={"std": 0.3, "command_name": "object_pose"},
+    #     weight=16.0,
+    # )
 
-    object_goal_tracking = RewTerm(
-        func=mdp.object_goal_distance,
-        params={"std": 0.3, "minimal_height": 0.04, "command_name": "object_pose"},
-        weight=16.0,
-    )
-
-    object_goal_tracking_fine_grained = RewTerm(
-        func=mdp.object_goal_distance,
-        params={"std": 0.05, "minimal_height": 0.04, "command_name": "object_pose"},
-        weight=5.0,
-    )
+    # object_goal_tracking_fine_grained = RewTerm(
+    #     func=mdp.object_goal_distance,
+    #     params={"std": 0.05, "command_name": "object_pose"},
+    #     weight=5.0,
+    # )
 
     # action penalty
     action_rate = RewTerm(func=mdp.action_rate_l2, weight=-1e-4)
@@ -165,11 +193,16 @@ class TerminationsCfg:
     """Termination terms for the MDP."""
 
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
-
-    object_dropping = DoneTerm(
-        func=mdp.root_height_below_minimum, params={"minimum_height": -0.05, "asset_cfg": SceneEntityCfg("object")}
+#might need timeout logic 
+    ee_reaches_cow_face = DoneTerm(
+        func=mdp.terminate_when_ee_reaches_cow_face,
+        params={
+            "threshold": 0.02,
+            "ee_frame_cfg": SceneEntityCfg("ee_frame"),
+            "cow_cfg": SceneEntityCfg("object"),
+            "face_offset": 0.2,
+        },
     )
-
 
 @configclass
 class CurriculumCfg:
@@ -190,11 +223,10 @@ class CurriculumCfg:
 
 
 @configclass
-class LiftEnvCfg(ManagerBasedRLEnvCfg):
+class InjectionEnvCfg(ManagerBasedRLEnvCfg):
     """Configuration for the lifting environment."""
-
     # Scene settings
-    scene: ObjectTableSceneCfg = ObjectTableSceneCfg(num_envs=4096, env_spacing=2.5)
+    scene: CowTableConfig = CowTableConfig(num_envs=4096, env_spacing=2.5)
     # Basic settings
     observations: ObservationsCfg = ObservationsCfg()
     actions: ActionsCfg = ActionsCfg()
@@ -204,7 +236,6 @@ class LiftEnvCfg(ManagerBasedRLEnvCfg):
     terminations: TerminationsCfg = TerminationsCfg()
     events: EventCfg = EventCfg()
     curriculum: CurriculumCfg = CurriculumCfg()
-
     def __post_init__(self):
         """Post initialization."""
         # general settings
