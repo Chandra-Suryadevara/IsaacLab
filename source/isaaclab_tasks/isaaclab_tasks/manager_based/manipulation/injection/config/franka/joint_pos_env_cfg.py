@@ -8,7 +8,7 @@ import math
 from isaaclab.utils import configclass
 
 import isaaclab_tasks.manager_based.manipulation.reach.mdp as mdp
-from isaaclab_tasks.manager_based.manipulation.reach.reach_env_cfg import ReachEnvCfg
+from isaaclab_tasks.manager_based.manipulation.injection.injection_env_cgf import CowInjectionEnvCfg
 
 ##
 # Pre-defined configs
@@ -22,7 +22,7 @@ from isaaclab_assets import FRANKA_PANDA_CFG  # isort: skip
 
 
 @configclass
-class FrankaReachEnvCfg(ReachEnvCfg):
+class FrankaReachEnvCfg(CowInjectionEnvCfg):
     def __post_init__(self):
         # post init of parent
         super().__post_init__()
@@ -42,6 +42,9 @@ class FrankaReachEnvCfg(ReachEnvCfg):
         # end-effector is along z-direction
         self.commands.ee_pose.body_name = "panda_hand"
         self.commands.ee_pose.ranges.pitch = (math.pi, math.pi)
+
+    def get_prim_custom(self):
+        return self.scene.robot
 
 
 @configclass

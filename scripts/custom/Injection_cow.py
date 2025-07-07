@@ -37,7 +37,7 @@ import torch
 
 from isaaclab.envs import ManagerBasedRLEnv
 
-from isaaclab_tasks.manager_based.manipulation.injection.injection_env_cgfv2 import ReachEnvCfg
+from isaaclab_tasks.manager_based.manipulation.injection.injection_env_cgf import ReachEnvCfg
 
 
 def main():

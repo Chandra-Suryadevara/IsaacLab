@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 from dataclasses import MISSING
-
+import math
 import isaaclab.sim as sim_utils
 from isaaclab.assets import ArticulationCfg, AssetBaseCfg,  RigidObjectCfg
 from isaaclab.envs import ManagerBasedRLEnvCfg
@@ -21,7 +21,7 @@ from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 from isaaclab.sim.spawners.from_files.from_files_cfg import UsdFileCfg
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
-
+from isaaclab.sensors import CameraCfg
 import isaaclab_tasks.manager_based.manipulation.reach.mdp as mdp
 
 ##
@@ -30,7 +30,7 @@ import isaaclab_tasks.manager_based.manipulation.reach.mdp as mdp
 
 
 @configclass
-class ReachSceneCfg(InteractiveSceneCfg):
+class CowInjectionSceneCfg(InteractiveSceneCfg):
     """Configuration for the scene with a robotic arm."""
 
     # world
@@ -63,6 +63,17 @@ class ReachSceneCfg(InteractiveSceneCfg):
         spawn=UsdFileCfg(usd_path=r"C:\Users\chandrashekar.suryad\Desktop\nvidia\IsaacLab\Models\CowModel\Blend\Cow.usd"),
     )
 
+    camera = CameraCfg(
+        prim_path="{ENV_REGEX_NS}/Robot/panda_link0/front_cam",
+        update_period=0.1,
+        height=480,
+        width=640,
+        data_types=["rgb", "distance_to_image_plane"],
+        spawn=sim_utils.FisheyeCameraCfg(
+            focal_length=24.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 1.0e5)
+        ),
+        offset=CameraCfg.OffsetCfg(pos=(0.0, 0.0, 0.1), rot=(0.0, 0.0, -0.7, 0.7), convention="ros"),
+    )
 
 ##
 # MDP settings
@@ -75,18 +86,19 @@ class CommandsCfg:
 
     ee_pose = mdp.UniformPoseCommandCfg(
         asset_name="robot",
-        body_name=MISSING,
-        resampling_time_range=(4.0, 4.0),
-        debug_vis=True,
+        body_name="panda_hand",  # <- now fully specified
+        resampling_time_range=(12.0, 12.0),  # match episode length so it doesn't change mid-run
+        debug_vis=False,
         ranges=mdp.UniformPoseCommandCfg.Ranges(
-            pos_x=(0.35, 0.65),
-            pos_y=(-0.2, 0.2),
-            pos_z=(0.15, 0.5),
-            roll=(0.0, 0.0),
-            pitch=MISSING,  # depends on end-effector axis
-            yaw=(-3.14, 3.14),
+            pos_x=(-0.1, -0.1),   # X fixed
+            pos_y=(-0.8, -0.8),   # Y fixed
+            pos_z=(0.2, 0.2),   # Z fixed
+            roll=(0.0, 0.0),    # Optional: no roll
+            pitch=(math.pi, math.pi),  # Optional: pointing downward (common for grippers)
+            yaw=(0.0, 0.0),     # No yaw rotation
         ),
     )
+
 
 
 @configclass
@@ -189,11 +201,11 @@ class CurriculumCfg:
 
 
 @configclass
-class ReachEnvCfg(ManagerBasedRLEnvCfg):
+class CowInjectionEnvCfg(ManagerBasedRLEnvCfg):
     """Configuration for the reach end-effector pose tracking environment."""
 
     # Scene settings
-    scene: ReachSceneCfg = ReachSceneCfg(num_envs=4096, env_spacing=2.5)
+    scene: CowInjectionSceneCfg = CowInjectionSceneCfg(num_envs=4096, env_spacing=2.5)
     # Basic settings
     observations: ObservationsCfg = ObservationsCfg()
     actions: ActionsCfg = ActionsCfg()
