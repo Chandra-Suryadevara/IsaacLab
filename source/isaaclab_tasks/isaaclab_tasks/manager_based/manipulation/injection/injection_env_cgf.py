@@ -21,12 +21,13 @@ from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 from isaaclab.sim.spawners.from_files.from_files_cfg import UsdFileCfg
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
-from isaaclab.sensors import CameraCfg
+from isaaclab.sensors import CameraCfg, Camera
 import isaaclab_tasks.manager_based.manipulation.reach.mdp as mdp
 
 ##
 # Scene definition
 ##
+
 
 
 @configclass
@@ -68,14 +69,13 @@ class CowInjectionSceneCfg(InteractiveSceneCfg):
         update_period=0.1,
         height=480,
         width=640,
-        data_types=["rgb", "distance_to_image_plane"],
+        data_types=["rgb"],
         spawn=sim_utils.FisheyeCameraCfg(
             focal_length=24.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 1.0e5)
         ),
         offset=CameraCfg.OffsetCfg(pos=(0.0, 0.0, 0.1), rot=(0.0, 0.0, -0.7, 0.7), convention="ros"),
     )
 
-##
 # MDP settings
 ##
 
@@ -207,6 +207,7 @@ class CowInjectionEnvCfg(ManagerBasedRLEnvCfg):
     # Scene settings
     scene: CowInjectionSceneCfg = CowInjectionSceneCfg(num_envs=4096, env_spacing=2.5)
     # Basic settings
+
     observations: ObservationsCfg = ObservationsCfg()
     actions: ActionsCfg = ActionsCfg()
     commands: CommandsCfg = CommandsCfg()

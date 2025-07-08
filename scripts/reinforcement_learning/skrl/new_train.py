@@ -1,17 +1,3 @@
-# Copyright (c) 2022-2025, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
-# All rights reserved.
-#
-# SPDX-License-Identifier: BSD-3-Clause
-
-"""
-Script to train RL agent with skrl.
-
-Visit the skrl documentation (https://skrl.readthedocs.io) to see the examples structured in
-a more user-friendly way.
-"""
-
-"""Launch Isaac Sim Simulator first."""
-
 import argparse
 import sys
 
@@ -75,6 +61,13 @@ import numpy as np
 import cv2
 import requests
 
+# For Detecron2
+from detectron2.config import get_cfg
+from detectron2.engine import DefaultPredictor
+from detectron2.model_zoo import get_model_zoo_configs
+from detectron2.model_zoo.model_zoo import get_checkpoint_url
+import torch
+
 # check for minimum supported skrl version
 SKRL_VERSION = "1.4.2"
 if version.parse(skrl.__version__) < version.parse(SKRL_VERSION):
@@ -110,6 +103,40 @@ from isaaclab_tasks.utils.hydra import hydra_task_config
 # config shortcuts
 algorithm = args_cli.algorithm.lower()
 agent_cfg_entry_point = "skrl_cfg_entry_point" if algorithm in ["ppo"] else f"skrl_{algorithm}_cfg_entry_point"
+
+# --- Detecron2 Model Initialization ---
+# This part should be moved outside the main function or initialized once.
+# For simplicity, we'll initialize a generic Detecron2 model here.
+# You would replace this with your specific trained model.
+def setup_detectron2_predictor():
+    cfg = get_cfg()
+    # Add project-specific config (e.g., if you have a custom dataset or model architecture)
+    # from detectron2.projects.<your_project_name> import add_your_project_config
+    # add_your_project_config(cfg)
+
+    # Use a pre-trained model for demonstration. Replace with your model.
+    # For example, a COCO-pretrained Mask R-CNN:
+    cfg.merge_from_file(get_model_zoo_configs()["COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"])
+    cfg.MODEL.WEIGHTS = get_checkpoint_url("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml")
+    cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.7  # set a custom testing threshold
+    cfg.MODEL.DEVICE = "cuda" if torch.cuda.is_available() else "cpu" # Use GPU if available
+
+    predictor = DefaultPredictor(cfg)
+    return predictor
+
+# Initialize the predictor once
+detectron2_predictor = None
+try:
+    import detectron2
+    detectron2_predictor = setup_detectron2_predictor()
+    print("[INFO] Detecron2 predictor initialized.")
+except ImportError:
+    print("[WARNING] Detectron2 is not installed. Image processing will be skipped.")
+    print("Please install Detectron2 to enable this feature: pip install 'detectron2@git+https://github.com/facebookresearch/detectron2.git'")
+except Exception as e:
+    print(f"[ERROR] Failed to initialize Detectron2 predictor: {e}")
+    detectron2_predictor = None
+
 
 @hydra_task_config(args_cli.task, agent_cfg_entry_point)
 def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agent_cfg: dict):
@@ -183,7 +210,6 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
         env = gym.wrappers.RecordVideo(env, **video_kwargs)
 
     # wrap around environment for skrl
-    
     env = SkrlVecEnvWrapper(env, ml_framework=args_cli.ml_framework)  # same as: `wrap_env(env, wrapper="auto")`
 
     # configure and instantiate the skrl runner
@@ -195,8 +221,100 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
         print(f"[INFO] Loading model checkpoint from: {resume_path}")
         runner.agent.load(resume_path)
 
-    # run training
-    runner.run()
+    # --- Custom Training Loop for Camera and Detecron2 Integration ---
+    # We need to manually control the simulation steps to access camera data.
+    # The default skrl runner.run() will abstract this.
+    # So, we'll mimic the runner's behavior and add our logic.
+
+    # Retrieve camera sensor from the environment
+    # Assuming 'front_cam' is the name given in your scene configuration
+    camera = env.unwrapped.scene["camera"]# For now assuming only one camera in env
+
+    # Calculate steps per second for image capture
+    sim_dt = env_cfg.sim.dt
+    decimation = env_cfg.decimation
+    simulation_steps_per_second = 1.0 / (sim_dt * decimation)
+    print(f"[INFO] Simulation steps per second: {simulation_steps_per_second}")
+    # We want to capture every 1 second, so capture_interval_steps is simulation_steps_per_second
+    capture_interval_steps = int(simulation_steps_per_second)
+    if capture_interval_steps == 0: # Ensure at least 1 step if sim_dt or decimation is very large
+        capture_interval_steps = 1
+    print(f"[INFO] Capturing image every {capture_interval_steps} simulation steps.")
+
+    # Initialize environment and get initial observations
+    observations, info = env.reset()
+    runner.agent.set_initial_states(observations=observations)
+
+    # Training loop
+    current_step = 0
+    while current_step < agent_cfg["trainer"]["timesteps"]:
+        # Sample an action from the agent
+        actions = runner.agent.act(observations, info["truncation"], inference=False)
+
+        # Apply action to environment and step simulation
+        observations, rewards, terminations, truncations, info = env.step(actions)
+
+        # Update agent and train
+        runner.agent.record(observations, actions, rewards, terminations, truncations, info)
+        runner.agent.post_step()
+
+        # --- Image Capture and Detecron2 Inference ---
+        if camera and detectron2_predictor and current_step % capture_interval_steps == 0:
+            print(f"--- Processing camera data at simulation step: {current_step} ---")
+            for env_idx in range(env_cfg.scene.num_envs):
+                # Access the RGB image data for the current environment
+                # The data is typically in (H, W, C) format, and already a numpy array
+                rgb_image = camera.data.output["rgb"][env_idx]
+                rgb_image_np = rgb_image.numpy() if isinstance(rgb_image, torch.Tensor) else rgb_image
+
+                # Convert from RGB to BGR for Detecron2 (OpenCV convention)
+                bgr_image = cv2.cvtColor(rgb_image_np, cv2.COLOR_RGB2BGR)
+
+                # Perform Detecron2 inference
+                try:
+                    outputs = detectron2_predictor(bgr_image)
+                    instances = outputs["instances"].to("cpu")
+
+                    if len(instances) > 0:
+                        # Extract bounding boxes (x1, y1, x2, y2)
+                        # And optionally scores and class_ids
+                        bboxes = instances.pred_boxes.tensor.numpy()
+                        scores = instances.scores.numpy()
+                        class_ids = instances.pred_classes.numpy()
+
+                        print(f"Env {env_idx}: Detected {len(instances)} objects.")
+                        for i in range(len(instances)):
+                            x1, y1, x2, y2 = bboxes[i]
+                            score = scores[i]
+                            class_id = class_ids[i]
+                            print(f"  Object {i}: Class ID: {class_id}, Score: {score:.2f}, BBox: [{x1:.0f}, {y1:.0f}, {x2:.0f}, {y2:.0f}]")
+
+                            # --- PLACEHOLDER: Use the coordinates to "print" an object ---
+                            # This is where you would implement your logic to use the detected coordinates.
+                            # For example, you might:
+                            # 1. Convert pixel coordinates to 3D world coordinates.
+                            #    This is complex and would involve camera intrinsics and extrinsics,
+                            #    and potentially depth data if available from the camera.
+                            #    You would need to use `isaaclab.sensors.Camera` helper functions or
+                            #    OmniGraph nodes to achieve this.
+                            # 2. Spawn a new object in the simulation at the inferred 3D position.
+                            # 3. Apply a force/torque to an existing object based on detection.
+                            # 4. Trigger some other simulation event.
+
+                            # Example: If you wanted to roughly draw a rectangle on the image for visualization (not in sim)
+                            # cv2.rectangle(bgr_image, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
+                            # cv2.putText(bgr_image, f"{class_id}: {score:.2f}", (int(x1), int(y1) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+
+                    else:
+                        print(f"Env {env_idx}: No objects detected.")
+
+                except Exception as e:
+                    print(f"[ERROR] Detecron2 inference failed for Env {env_idx}: {e}")
+
+        current_step += 1
+
+    # Finalize runner (save model, etc.)
+    runner.finalize()
 
     # close the simulator
     env.close()
