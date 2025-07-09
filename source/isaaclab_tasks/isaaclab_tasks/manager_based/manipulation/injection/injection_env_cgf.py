@@ -87,14 +87,14 @@ class CommandsCfg:
         asset_name="robot",
         body_name="panda_hand",  # <- now fully specified
         resampling_time_range=(12.0, 12.0),  # match episode length so it doesn't change mid-run
-        debug_vis=False,
+        debug_vis=True,
         ranges=mdp.UniformPoseCommandCfg.Ranges(
-            pos_x=(-0.1, -0.1),   # X fixed
-            pos_y=(-0.8, -0.8),   # Y fixed
-            pos_z=(0.2, 0.2),   # Z fixed
-            roll=(0.0, 0.0),    # Optional: no roll
-            pitch=(math.pi, math.pi),  # Optional: pointing downward (common for grippers)
-            yaw=(0.0, 0.0),     # No yaw rotation
+            pos_x=(0.7, 0.7),   # X fixed
+            pos_y=(0.1, 0.1),   # Y fixed
+            pos_z=(0.4, 0.4),   # Z fixed
+            roll=(math.pi/2, math.pi/2),    # Optional: no roll
+            pitch=(math.pi/2, math.pi/2),  # Optional: pointing downward (common for grippers)
+            yaw = (math.pi/2, math.pi/2) ,   # No yaw rotation
         ),
     )
 
