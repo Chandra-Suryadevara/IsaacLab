@@ -46,7 +46,7 @@ class CowInjectionSceneCfg(InteractiveSceneCfg):
         spawn=sim_utils.UsdFileCfg(
             usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Mounts/SeattleLabTable/table_instanceable.usd",
         ),
-        init_state=AssetBaseCfg.InitialStateCfg(pos=(0.55, 0.0, 0.0), rot=(0.70711, 0.0, 0.0, 0.70711)),
+        init_state=AssetBaseCfg.InitialStateCfg(pos=(0.0, 0.5, 0.0), rot=(0.0, 0.0, 0.0, 1.0)),
     )
 
     # robots
@@ -60,10 +60,9 @@ class CowInjectionSceneCfg(InteractiveSceneCfg):
     
     object = RigidObjectCfg(
         prim_path="{ENV_REGEX_NS}/Cow",
-        init_state=RigidObjectCfg.InitialStateCfg(pos=[1.0, -1.0, -1.10], rot = [0.707, 0.707, 0, 0]  ),
-        spawn=UsdFileCfg(usd_path=r"C:\Users\chandrashekar.suryad\Desktop\nvidia\IsaacLab\Models\CowModel\Blend\Cow.usd"),
+        init_state=RigidObjectCfg.InitialStateCfg(pos=[1.3, -1.15, -1.10], rot = [0.7, 0.7, 0.0, 0.0]  ),
+        spawn=UsdFileCfg(usd_path=r"C:\Users\chandrashekar.suryad\Desktop\nvidia\IsaacLab\Models\CowModel\Blend\final_cow_chute.usd"),
     )
-
     camera = CameraCfg(
         prim_path="{ENV_REGEX_NS}/Robot/panda_link0/front_cam",
         update_period=0.1,
@@ -73,7 +72,7 @@ class CowInjectionSceneCfg(InteractiveSceneCfg):
         spawn=sim_utils.FisheyeCameraCfg(
             focal_length=24.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 1.0e5)
         ),
-        offset=CameraCfg.OffsetCfg(pos=(0.0, 0.0, 0.1), rot=(0.0, 0.0, -0.7, 0.7), convention="ros"),
+        offset=CameraCfg.OffsetCfg(pos=(0.0, 0.0, 0.1), rot=(0.5, -0.5, 0.5, -0.5), convention="ros"),
     )
 
 # MDP settings
@@ -205,7 +204,7 @@ class CowInjectionEnvCfg(ManagerBasedRLEnvCfg):
     """Configuration for the reach end-effector pose tracking environment."""
 
     # Scene settings
-    scene: CowInjectionSceneCfg = CowInjectionSceneCfg(num_envs=4096, env_spacing=2.5)
+    scene: CowInjectionSceneCfg = CowInjectionSceneCfg(num_envs=4096, env_spacing=5.5)
     # Basic settings
 
     observations: ObservationsCfg = ObservationsCfg()
@@ -222,7 +221,7 @@ class CowInjectionEnvCfg(ManagerBasedRLEnvCfg):
         # general settings
         self.decimation = 2
         self.sim.render_interval = self.decimation
-        self.episode_length_s = 12.0
+        self.episode_length_s = 300.0
         self.viewer.eye = (3.5, 3.5, 3.5)
         # simulation settings
         self.sim.dt = 1.0 / 60.0
