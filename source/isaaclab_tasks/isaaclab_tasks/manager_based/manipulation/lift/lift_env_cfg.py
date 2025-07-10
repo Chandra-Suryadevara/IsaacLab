@@ -61,13 +61,7 @@ class ObjectTableSceneCfg(InteractiveSceneCfg):
         prim_path="/World/light",
         spawn=sim_utils.DomeLightCfg(color=(0.75, 0.75, 0.75), intensity=3000.0),
     )
-    cow = AssetBaseCfg(
-    prim_path="{ENV_REGEX_NS}/Cow",
-    init_state=AssetBaseCfg.InitialStateCfg(pos=[1.0, -1.0, -1.1], rot = [0.707, 0.707, 0, 0]),  # Adjust position & rotation as needed
-    spawn=UsdFileCfg(usd_path=r"C:\Users\chandrashekar.suryad\Desktop\nvidia\IsaacLab\Models\CowModel\Blend\Cow.usd"),  # Change path to your cow USD file
-)
-
-
+    
 ##
 # MDP settings
 ##
