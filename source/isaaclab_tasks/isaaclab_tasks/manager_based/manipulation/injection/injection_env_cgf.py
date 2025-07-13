@@ -63,28 +63,28 @@ class CowInjectionSceneCfg(InteractiveSceneCfg):
         init_state=RigidObjectCfg.InitialStateCfg(pos=[1.3, -1.15, -1.10], rot = [0.7, 0.7, 0.0, 0.0]  ),
         spawn=UsdFileCfg(usd_path=r"C:\Users\chandrashekar.suryad\Desktop\nvidia\IsaacLab\Models\CowModel\Blend\final_cow_chute.usd"),
     )
-    camera = CameraCfg(
-        prim_path="{ENV_REGEX_NS}/Robot/panda_link0/front_cam",
-        update_period=0.1,
-        height=480,
-        width=640,
-        data_types=["rgb"],
-        spawn=sim_utils.FisheyeCameraCfg(
-            focal_length=24.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 1.0e5)
-        ),
-        offset=CameraCfg.OffsetCfg(pos=(0.0, 0.0, 0.1), rot=(0.5, -0.5, 0.5, -0.5), convention="ros"),
-    )
-    camera_2 = CameraCfg(
-        prim_path="{ENV_REGEX_NS}/Robot/panda_hand/joint_cam",
-        update_period=0.1,
-        height=480,
-        width=640,
-        data_types=["rgb"],
-        spawn=sim_utils.FisheyeCameraCfg(
-            focal_length=24.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 1.0e5)
-        ),
-        offset=CameraCfg.OffsetCfg(pos=(0.0, 0.0, 0.1), rot=(6.1, -0.7, -0.7, 4.3), convention="ros"),
-    )
+    # camera = CameraCfg(
+    #     prim_path="{ENV_REGEX_NS}/Robot/panda_link0/front_cam",
+    #     update_period=0.1,
+    #     height=480,
+    #     width=640,
+    #     data_types=["rgb"],
+    #     spawn=sim_utils.FisheyeCameraCfg(
+    #         focal_length=24.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 1.0e5)
+    #     ),
+    #     offset=CameraCfg.OffsetCfg(pos=(0.0, 0.0, 0.1), rot=(0.5, -0.5, 0.5, -0.5), convention="ros"),
+    # )
+    # camera_2 = CameraCfg(
+    #     prim_path="{ENV_REGEX_NS}/Robot/panda_hand/joint_cam",
+    #     update_period=0.1,
+    #     height=480,
+    #     width=640,
+    #     data_types=["rgb"],
+    #     spawn=sim_utils.FisheyeCameraCfg(
+    #         focal_length=24.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 1.0e5)
+    #     ),
+    #     offset=CameraCfg.OffsetCfg(pos=(0.0, 0.0, 0.1), rot=(6.1, -0.7, -0.7, 4.3), convention="ros"),
+    # )
 
 # MDP settings
 ##
@@ -100,12 +100,12 @@ class CommandsCfg:
         resampling_time_range=(12.0, 12.0),  # match episode length so it doesn't change mid-run
         debug_vis=True,
         ranges=mdp.UniformPoseCommandCfg.Ranges(
-            pos_x=(0.4, 0.6),   # X fixed
+            pos_x=(0.8, 0.8),   # X fixed
             pos_y=(0.1, 0.18),   # Y fixed
             pos_z=(0.36, 0.4),   # Z fixed
             roll=(0.0, 0.0),
             pitch=MISSING,  # depends on end-effector axis
-            yaw=(-3.14, 3.14),
+            yaw=(0.0, 0.0),
         ),
     )
 
@@ -138,24 +138,24 @@ class ObservationsCfg:
             self.enable_corruption = True
             self.concatenate_terms = True
 
-    @configclass
-    class RGBCameraPolicyCfg(ObsGroup):
-        """Observations for policy group with RGB images."""
+    # @configclass
+    # class RGBCameraPolicyCfg(ObsGroup):
+    #     """Observations for policy group with RGB images."""
 
-        table_cam = ObsTerm(
-            func=mdp.image, params={"sensor_cfg": SceneEntityCfg("camera"), "data_type": "rgb", "normalize": False}
-        )
-        wrist_cam = ObsTerm(
-            func=mdp.image, params={"sensor_cfg": SceneEntityCfg("camera_2"), "data_type": "rgb", "normalize": False}
-        )
+    #     table_cam = ObsTerm(
+    #         func=mdp.image, params={"sensor_cfg": SceneEntityCfg("camera"), "data_type": "rgb", "normalize": False}
+    #     )
+    #     wrist_cam = ObsTerm(
+    #         func=mdp.image, params={"sensor_cfg": SceneEntityCfg("camera_2"), "data_type": "rgb", "normalize": False}
+    #     )
 
-        def __post_init__(self):
-            self.enable_corruption = False
-            self.concatenate_terms = False
+    #     def __post_init__(self):
+    #         self.enable_corruption = False
+    #         self.concatenate_terms = False
 
-    # observation groups
+    # # observation groups
     policy: PolicyCfg = PolicyCfg()
-    rgb_camera: RGBCameraPolicyCfg = RGBCameraPolicyCfg()
+    #rgb_camera: RGBCameraPolicyCfg = RGBCameraPolicyCfg()
 
 
 @configclass
@@ -249,7 +249,7 @@ class CowInjectionEnvCfg(ManagerBasedRLEnvCfg):
         # general settings
         self.decimation = 2
         self.sim.render_interval = self.decimation
-        self.episode_length_s = 60.0
+        self.episode_length_s = 8.0
         self.viewer.eye = (3.5, 3.5, 3.5)
         # simulation settings
         self.sim.dt = 1.0 / 60.0
