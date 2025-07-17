@@ -213,7 +213,7 @@ def main():
 
         # Hand tracking needs explicit start gesture to activate
         teleoperation_active = False
-
+ 
     elif "handtracking" in args_cli.teleop_device.lower():
         # Create EE retargeter with desired configuration
         if "_abs" in args_cli.teleop_device.lower():
@@ -262,8 +262,9 @@ def main():
             # Only apply teleop commands when active
             if teleoperation_active:
                 # compute actions based on environment
+                print(teleop_data)
                 actions = pre_process_actions(teleop_data, env.num_envs, env.device)
-                # apply actions
+                print(actions)
                 env.step(actions)
             else:
                 env.sim.render()

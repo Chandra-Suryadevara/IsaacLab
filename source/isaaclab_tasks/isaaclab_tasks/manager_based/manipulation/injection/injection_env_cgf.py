@@ -61,7 +61,7 @@ class CowInjectionSceneCfg(InteractiveSceneCfg):
     object = RigidObjectCfg(
         prim_path="{ENV_REGEX_NS}/Cow",
         init_state=RigidObjectCfg.InitialStateCfg(pos=[1.3, -1.15, -1.10], rot = [0.7, 0.7, 0.0, 0.0]  ),
-        spawn=UsdFileCfg(usd_path=r"C:\Users\chandrashekar.suryad\Desktop\nvidia\IsaacLab\Models\CowModel\Blend\final_cow_chute.usd"),
+        spawn=UsdFileCfg(usd_path=r"C:\Users\chandrashekar.suryad\Desktop\nvidia\IsaacLab\Models\CowModel\Blend\Working_Chute\cow_with_chute_testing.usd"),
     )
     # camera = CameraCfg(
     #     prim_path="{ENV_REGEX_NS}/Robot/panda_link0/front_cam",
@@ -100,10 +100,10 @@ class CommandsCfg:
         resampling_time_range=(12.0, 12.0),  # match episode length so it doesn't change mid-run
         debug_vis=True,
         ranges=mdp.UniformPoseCommandCfg.Ranges(
-            pos_x=(0.8, 0.8),   # X fixed
-            pos_y=(0.1, 0.18),   # Y fixed
-            pos_z=(0.36, 0.4),   # Z fixed
-            roll=(0.0, 0.0),
+            pos_x=(0.0, 0.2),   # X fixed
+            pos_y=(-0.85, -0.65),   # Y fixed
+            pos_z=(0.3, 0.6),   # Z fixed
+            roll=(math.pi/2, math.pi/2),
             pitch=MISSING,  # depends on end-effector axis
             yaw=(0.0, 0.0),
         ),
@@ -117,8 +117,7 @@ class ActionsCfg:
 
     arm_action: ActionTerm = MISSING
     gripper_action: ActionTerm | None = None
-
-
+    
 @configclass
 class ObservationsCfg:
     """Observation specifications for the MDP."""
@@ -249,7 +248,7 @@ class CowInjectionEnvCfg(ManagerBasedRLEnvCfg):
         # general settings
         self.decimation = 2
         self.sim.render_interval = self.decimation
-        self.episode_length_s = 8.0
+        self.episode_length_s = 2500.0
         self.viewer.eye = (3.5, 3.5, 3.5)
         # simulation settings
         self.sim.dt = 1.0 / 60.0

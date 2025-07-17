@@ -41,7 +41,7 @@ class FrankaReachEnvCfg(CowInjectionEnvCfg):
         # override command generator body
         # end-effector is along z-direction
         self.commands.ee_pose.body_name = "panda_hand"
-        self.commands.ee_pose.ranges.pitch = (math.pi, math.pi)
+        self.commands.ee_pose.ranges.pitch = (0.0,0.0)
 
     def get_prim_custom(self):
         return self.scene.robot
