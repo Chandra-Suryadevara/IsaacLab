@@ -77,6 +77,7 @@ gym.register(
     kwargs={
         "env_cfg_entry_point": f"{__name__}.osc_env_cfg:FrankaReachEnvCfg",
         "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:FrankaReachPPORunnerCfg",
+         "skrl_cfg_entry_point": f"{agents.__name__}:skrl_ppo_cfg.yaml",
     },
 )
 
@@ -87,5 +88,6 @@ gym.register(
     kwargs={
         "env_cfg_entry_point": f"{__name__}.osc_env_cfg:FrankaReachEnvCfg_PLAY",
         "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:FrankaReachPPORunnerCfg",
+        "skrl_cfg_entry_point": f"{agents.__name__}:skrl_ppo_cfg.yaml",
     },
 )

@@ -100,7 +100,7 @@ class CommandsCfg:
         resampling_time_range=(12.0, 12.0),  # match episode length so it doesn't change mid-run
         debug_vis=True,
         ranges=mdp.UniformPoseCommandCfg.Ranges(
-            pos_x=(0.0, 0.2),   # X fixed
+            pos_x=(0.0, 0.0),   # X fixed
             pos_y=(-0.85, -0.65),   # Y fixed
             pos_z=(0.3, 0.6),   # Z fixed
             roll=(math.pi/2, math.pi/2),
@@ -248,7 +248,7 @@ class CowInjectionEnvCfg(ManagerBasedRLEnvCfg):
         # general settings
         self.decimation = 2
         self.sim.render_interval = self.decimation
-        self.episode_length_s = 2500.0
+        self.episode_length_s = 180.0
         self.viewer.eye = (3.5, 3.5, 3.5)
         # simulation settings
         self.sim.dt = 1.0 / 60.0

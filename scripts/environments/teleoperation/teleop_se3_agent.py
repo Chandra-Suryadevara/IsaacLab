@@ -262,9 +262,7 @@ def main():
             # Only apply teleop commands when active
             if teleoperation_active:
                 # compute actions based on environment
-                print(teleop_data)
                 actions = pre_process_actions(teleop_data, env.num_envs, env.device)
-                print(actions)
                 env.step(actions)
             else:
                 env.sim.render()
