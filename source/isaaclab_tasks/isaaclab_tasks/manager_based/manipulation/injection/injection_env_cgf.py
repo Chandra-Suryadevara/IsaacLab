@@ -58,10 +58,15 @@ class CowInjectionSceneCfg(InteractiveSceneCfg):
         spawn=sim_utils.DomeLightCfg(color=(0.75, 0.75, 0.75), intensity=2500.0),
     )
     
+    # object = RigidObjectCfg(
+    #     prim_path="{ENV_REGEX_NS}/Cow",
+    #     init_state=RigidObjectCfg.InitialStateCfg(pos=[1.3, -1.15, -1.10], rot = [0.7, 0.7, 0.0, 0.0]  ),
+    #     spawn=UsdFileCfg(usd_path=r"C:\Users\chandrashekar.suryad\Desktop\nvidia\IsaacLab\Models\CowModel\Blend\Working_Chute\cow_with_chute_testing.usd"),
+    # )
     object = RigidObjectCfg(
         prim_path="{ENV_REGEX_NS}/Cow",
-        init_state=RigidObjectCfg.InitialStateCfg(pos=[1.3, -1.15, -1.10], rot = [0.7, 0.7, 0.0, 0.0]  ),
-        spawn=UsdFileCfg(usd_path=r"C:\Users\chandrashekar.suryad\Desktop\nvidia\IsaacLab\Models\CowModel\Blend\Working_Chute\cow_with_chute_testing.usd"),
+        init_state=RigidObjectCfg.InitialStateCfg(pos=[0.9, -1.1, -1.2], rot = [0.7, 0.7, 0.0, 0.0]  ),
+        spawn=UsdFileCfg(usd_path=r"C:\Users\chandrashekar.suryad\Desktop\nvidia\IsaacLab\Models\CowModel\Blend\Working_Chute\only_cow.usd"),
     )
     # camera = CameraCfg(
     #     prim_path="{ENV_REGEX_NS}/Robot/panda_link0/front_cam",
@@ -94,18 +99,32 @@ class CowInjectionSceneCfg(InteractiveSceneCfg):
 class CommandsCfg:
     """Command terms for the MDP."""
 
+    # ee_pose = mdp.UniformPoseCommandCfg(
+    #     asset_name="robot",
+    #     body_name="panda_hand",  # <- now fully specified
+    #     resampling_time_range=(12.0, 12.0),  # match episode length so it doesn't change mid-run
+    #     debug_vis=True,
+    #     ranges=mdp.UniformPoseCommandCfg.Ranges(
+    #         pos_x=(0.8, 0.8),   # X fixed
+    #         pos_y=(-0.05, -0.05),   # Y fixed
+    #         pos_z=(0.4, 0.4),   # Z fixed
+    #         roll=(math.pi/2,math.pi/2),
+    #         pitch=MISSING,  # depends on end-effector axis
+    #         yaw=(math.pi/2, math.pi/2),
+    #     ),
+    # )
     ee_pose = mdp.UniformPoseCommandCfg(
         asset_name="robot",
         body_name="panda_hand",  # <- now fully specified
         resampling_time_range=(12.0, 12.0),  # match episode length so it doesn't change mid-run
         debug_vis=True,
         ranges=mdp.UniformPoseCommandCfg.Ranges(
-            pos_x=(0.0, 0.0),   # X fixed
-            pos_y=(-0.85, -0.65),   # Y fixed
-            pos_z=(0.3, 0.6),   # Z fixed
-            roll=(math.pi/2, math.pi/2),
+            pos_x=(0.65, 0.80),   # X fixed
+            pos_y=(-0.2, 0.15),   # Y fixed
+            pos_z=(0.25, 0.45),   # Z fixed
+            roll=(math.pi/2,math.pi/2),
             pitch=MISSING,  # depends on end-effector axis
-            yaw=(0.0, 0.0),
+            yaw=(math.pi/2, math.pi/2),
         ),
     )
 
@@ -248,7 +267,7 @@ class CowInjectionEnvCfg(ManagerBasedRLEnvCfg):
         # general settings
         self.decimation = 2
         self.sim.render_interval = self.decimation
-        self.episode_length_s = 180.0
+        self.episode_length_s = 15.0
         self.viewer.eye = (3.5, 3.5, 3.5)
         # simulation settings
         self.sim.dt = 1.0 / 60.0

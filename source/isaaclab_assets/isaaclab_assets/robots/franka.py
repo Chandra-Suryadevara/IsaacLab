@@ -46,6 +46,8 @@ FRANKA_PANDA_CFG = ArticulationCfg(
             "panda_joint7": 0.741,
             "panda_finger_joint.*": 0.04,
         },
+        rot = (0.7, 0.0, 0.0, -0.7),
+        pos=(0.0, -0.1, 0.0)
     ),
     actuators={
         "panda_shoulder": ImplicitActuatorCfg(
